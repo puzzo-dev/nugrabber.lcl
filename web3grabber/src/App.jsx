@@ -3,11 +3,11 @@ import { useState, useEffect } from 'react'
 // import viteLogo from '/vite.svg'
 import './App.css';
 import {
+  Wallet,
   getDefaultWallets,
   RainbowKitProvider,
   ConnectButton,
 } from '@rainbow-me/rainbowkit';
-import { Wallet } from '@rainbow-me/rainbowkit/wallets';
 import { configureChains, createConfig, WagmiConfig } from 'wagmi';
 import {
   mainnet,
