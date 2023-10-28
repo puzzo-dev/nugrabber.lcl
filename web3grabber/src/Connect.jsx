@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createWeb3Modal, useWeb3Modal, defaultWagmiConfig } from '@web3modal/wagmi/react'
 import web3 from 'web3'
-import { WagmiConfig, useAccount } from 'wagmi'
+import { WagmiConfig, useAccount, useDisconnect } from 'wagmi'
 import { mainnet, arbitrum, polygon, bsc } from 'wagmi/chains'
 // 1. Get projectId
 const projectId = '0e82a2042e9b6e7c12a66c93606876c2';
@@ -18,9 +18,11 @@ const chains = [mainnet, arbitrum, polygon, bsc];
 
 const wagmiConfig = defaultWagmiConfig({ chains, projectId, metadata })
 
-// 3. Create modal
-// const web3Modal = createWeb3Modal({ wagmiConfig, projectId, chains })
-
+/**
++ * Renders the Connect component.
++ *
++ * @return {ReactElement} The rendered Connect component.
++ */
 export function Connect() {
     return (
         <WagmiConfig config={wagmiConfig}>
@@ -28,9 +30,17 @@ export function Connect() {
         </WagmiConfig>
     )
 }
+/**
++ * ConnectButton Component.
++ *
++ * This component renders a button that connects to a Web3 provider using useWeb3Modal hook. It also displays the user's address and balance if connected.
++ *
++ * @returns {JSX.Element} - The ConnectButton component.
+            + */
 function ConnectButton() {
     const { open } = useWeb3Modal();
     const { address, isConnected, isDisconnected } = useAccount();
+    const { disconnect } = useDisconnect();
     const [balance, setBalance] = useState('');
 
     // Function to handle disconnection
@@ -46,8 +56,12 @@ function ConnectButton() {
     useEffect(() => {
         const fetchBalance = async () => {
             if (isConnected && address) {
-                const balance = await web3.eth.getBalance(address);
-                setBalance(web3.utils.fromWei(balance, 'ether'));
+                const web3connect = new web3(createWeb3Modal({ wagmiConfig, projectId, chains }).provider); // Initialize Web3 with the provider
+                const weiBalance = await web3connect.eth.getBalance(address);
+                const ethBalance = web3connect.utils.fromWei(weiBalance, 'ether');
+                setBalance(ethBalance);
+                console.log(web3connect)
+
             }
         };
 
@@ -61,6 +75,8 @@ function ConnectButton() {
             open();
         }
     }, [isDisconnected, open]);
+
+    console.log(balance)
 
     return (
         <>
