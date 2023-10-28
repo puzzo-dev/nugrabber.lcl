@@ -31,6 +31,7 @@ export function Connect() {
         </WagmiConfig>
     )
 }
+
 function ConnectButton() {
     const { open } = useWeb3Modal();
     const { address, isConnected, isDisconnected } = useAccount();
